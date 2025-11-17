@@ -35,7 +35,7 @@ Average speedup:
 
 And this is **CPU-only**.  
 GPU performance has **not been tested yet** and will be even faster.
-
+![Speed Comparison](assets/output(1).png)
 ---
 
 ### 2. Only 1.5 MB  
