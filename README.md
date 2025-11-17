@@ -1,131 +1,123 @@
 # O-VAE: Organic Latent Encoder (OLA-Driven VAE Replacement)
 
-This repository contains the **O-VAE**, a lightweight latent encoder built using my **Organic Learning Architecture (OLA)** principles.  
-It is designed as a drop-in replacement for a traditional VAE encoder while being dramatically faster, smaller, and completely free of gradient-based training.
+This repo contains the **O-VAE**, a tiny latent encoder built with **Organic Learning Architecture (OLA)** instead of gradients.  
+It replaces a standard VAE encoder with something that is:
+
+- **~18.3x faster on CPU**
+- **~400x smaller** (1.5 MB vs 600 MB)
+- **trained with zero backprop**
+
+No training script. No optimizer. No epochs.
 
 ---
 
-# Overview
+## Quick facts
 
-The O-VAE is a **1.5 MB** organic encoder that performs the same job as a conventional **600 MB VAE encoder** but with a radically different internal structure:
-
-- No gradients  
-- No backprop  
-- No optimizer  
-- No epochs  
-- No training script needed
-
-The encoder is built through **organic adaptation** using evolving genome pathways and trust dynamics that stabilize useful patterns over time.
-
-The result is a compact, self-organized latent extractor that can be plugged into any generative pipeline without requiring access to the original training process.
+- **Size**: ~1.5 MB  
+- **Reference VAE size**: ~600 MB  
+- **Average speedup**: ~18.3x faster than a standard VAE encoder on CPU  
+- **Device**: All benchmarks are CPU only. GPU speed has not been tested yet.  
+- **Latent size**: 4D vector per image  
+- **Training**: OLA based, no gradients, method not released  
 
 ---
 
-# Key Features
+## Benchmark: Speed
 
-### 1. ~18× Faster Than Standard VAE Encoders  
-Measured over real samples:
+This encoder was benchmarked directly against a standard VAE encoder on the same images.
 
-- Traditional VAE: ~0.000658 seconds per image  
-- O-VAE Encoder: ~0.000036 seconds per image  
+- VAE encode time: ~0.000658 s per image (CPU)  
+- O-VAE encode time: ~0.000036 s per image (CPU)  
+- Average speedup: **18.3x**
 
-Average speedup:
+### Speed charts
 
-### → O-VAE is 18.3× faster
+`assets/speed_comp.png`  
+![Speed Comparison](assets/speed_comp.png)
 
-And this is **CPU-only**.  
-GPU performance has **not been tested yet** and will be even faster.
-![Speed Comparison](assets/output(1).png)
----
+This chart shows per sample encode time for the VAE vs the O-VAE. The O-VAE line hugs the bottom because the cost is close to zero.
 
-### 2. Only 1.5 MB  
-A typical SD-VAE encoder sits around **600 MB**.
+`assets/speed_1.png`  
+![Speed Chart 2](assets/speed_1.png)
 
-The O-VAE encoder is:
+This zooms in on the O-VAE timing itself. The takeaway is simple: encoding is effectively free at this scale.
 
-### → 400× smaller
-
-Perfect for:
-
-- Low-power devices  
-- Real-time systems  
-- Embedded AI  
-- Multi-agent pipelines  
-- Local models  
-- Edge deployments  
+All of this is on **CPU only**. There has been no attempt yet to optimize for GPU.
 
 ---
 
-### 3. Gradient-Free Learning  
-The O-VAE is produced entirely through:
+## Benchmark: Latent behavior
 
-- Evolution  
-- Trust-based selection  
-- Continuous adaptation  
-- No loss function  
-- No supervised training  
-- No gradients at any stage  
+The goal of O-VAE is **not** to perfectly match the SD-VAE latent space.  
+The goal is to produce a **stable, internally consistent latent representation** that downstream models can learn from.
 
-This means:
+### Cosine similarity
 
-- It is safe to distribute  
-- It cannot be fine-tuned through normal ML methods  
-- It is fully decoupled from backprop pipelines  
-- It avoids adversarial retraining vulnerabilities  
+`assets/Cosine_sim.png`  
+![Cosine Similarity](assets/Cosine_sim.png)
 
----
+This plot shows cosine similarity between VAE latents and O-VAE latents for the same inputs.  
+Values are moderate rather than high. That is expected.  
+The O-VAE is not copying the VAE. It is learning its own coordinate system.
 
-### 4. Organic Pathway Architecture  
-Each pathway behaves like a living micro-network:
+### L2 distance
 
-- Nodes and edges evolve  
-- Useful patterns stabilize  
-- Unproductive pathways decay  
-- Structure is shaped by trust instead of loss minimization  
+`assets/L2.png`  
+![L2 Distance](assets/L2.png)
 
-This produces an encoder with biological-like properties:
+L2 distances between the two latent spaces vary within a stable range.  
+Again, this is not a correctness test. It simply confirms that the O-VAE does not collapse into nonsense or explode in magnitude. It sits in its own consistent regime.
 
-- resilience  
-- modularity  
-- redundancy  
-- emergent compression strategies  
+### Latent norm
+
+`assets/Latent_norm.png`  
+![Latent Norm](assets/Latent_norm.png)
+
+This chart compares the vector norms of VAE latents and O-VAE latents.  
+The absolute scale is different, which is fine. What matters is that the O-VAE norms are stable across inputs. Downstream models can be trained directly on this distribution.
 
 ---
 
-# Latent Comparison
+## Why matching the VAE is not required
 
-The O-VAE latent vectors **do not need to match** the traditional VAE’s outputs.  
-They only need to be **internally consistent**.
+Downstream components are meant to run **on O-VAE latents**, not SD-VAE latents.
 
-Any downstream modules (decoder, UNet, classifiers, etc.) can be trained **against the O-VAE’s latent distribution**, meaning the encoder becomes the new reference frame for the pipeline.
+As long as the O-VAE:
 
-This is the same principle that enables:
+- produces consistent structure  
+- stays stable across inputs  
+- keeps latents in a controlled range  
 
-- CLIP embeddings  
-- custom text embeddings  
-- multimodal alignment models  
+then any decoder, UNet, or head trained on top of it will learn that geometry automatically.
 
-Absolute latent positions don't matter — **structure does**.
-
----
-
-# Included in This Repo
-
-- `encoder_weights.pt` — O-VAE encoder (~1.5 MB)  
-- Example usage script  
-- Performance CSVs  
-- Latent comparison charts  
-- README.md (this file)
+This is the same idea that makes CLIP embeddings and custom text embeddings work.  
+Absolute coordinates do not matter. **Relative structure and consistency do.**
 
 ---
 
-# How to Use
+## How to use the O-VAE
+
+Minimal example of loading the encoder and getting a latent vector:
 
 ```python
-from ovae import OrganicEncoder
 import torch
+from ovae import OrganicEncoder
+from PIL import Image
+import torchvision.transforms as T
 
-model = OrganicEncoder().eval()
+# Load encoder
+encoder = OrganicEncoder().eval()
 
-img = load_image("example.jpg")
-latent = model(img)  # returns 4D latent vector
+# Basic image preprocessing (adjust to your pipeline)
+transform = T.Compose([
+    T.Resize((256, 256)),
+    T.ToTensor()
+])
+
+img = Image.open("example.jpg").convert("RGB")
+tensor = transform(img).unsqueeze(0)  # shape: [1, 3, 256, 256]
+
+with torch.no_grad():
+    latent = encoder(tensor)  # shape: [1, 4]
+
+print(latent)
